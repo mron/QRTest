@@ -260,6 +260,7 @@
             border-radius: 12px;
             padding: 16px;
             margin: 20px 0;
+            position: relative;
         }
         
         .ready-to-add h3 {
@@ -268,9 +269,44 @@
             font-size: 18px;
         }
         
-        .ready-to-add p {
+        .ready-input {
+            width: calc(100% - 60px);
+            padding: 8px 12px;
+            border: 1px solid #10b981;
+            border-radius: 6px;
+            background: white;
             color: #047857;
-            word-break: break-all;
+            font-size: 14px;
+            font-family: monospace;
+        }
+        
+        .ready-input:focus {
+            outline: none;
+            border-color: #047857;
+        }
+        
+        .ready-input[readonly] {
+            background: #f0fdf4;
+            cursor: default;
+        }
+        
+        .edit-btn {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+        
+        .edit-btn:hover {
+            background: #059669;
         }
         
         .scanned-list {
@@ -576,11 +612,11 @@
                     <h3>Or Enter Manually:</h3>
                 </div>
                 <input type="text" id="manualPartNumber" class="manual-input" placeholder="Enter part number manually..." autocapitalization="none">
-                <button class="btn btn-green" id="manualAddBtn" onclick="addManualEntry()">Use Manual Entry</button>
+                <button class="btn btn-green" id="manualAddBtn" onclick="addManualEntry()">Set Manual Entry</button>
             </div>
             
-            <!-- Add Item Button (only shows when QR code is ready) -->
-            <button class="btn btn-green hidden" id="addBtn" onclick="addItemToList()">Add Scanned Item to List</button>
+            <!-- Add Item Button (shows when QR code OR manual entry is ready) -->
+            <button class="btn btn-green hidden" id="addBtn" onclick="addItemToList()">Add Item to List</button>
             
             <!-- Comments Section -->
             <div class="comment-section">
@@ -595,7 +631,8 @@
             <!-- Ready to Add Section -->
             <div id="readyToAdd" class="ready-to-add hidden">
                 <h3>Ready to Add:</h3>
-                <p id="readyCode"></p>
+                <input type="text" id="editablePartNumber" class="ready-input" readonly>
+                <button class="edit-btn" id="editBtn" onclick="toggleEdit()">✏️ Edit</button>
             </div>
             
             <!-- Send to SharePoint Button -->
@@ -717,13 +754,16 @@
             const sendBtn = document.getElementById('sendBtn');
             const addBtn = document.getElementById('addBtn');
             const readyToAdd = document.getElementById('readyToAdd');
-            const readyCode = document.getElementById('readyCode');
+            const editablePartNumber = document.getElementById('editablePartNumber');
             
             // Update ready to add section
             if (lastScannedCode) {
                 readyToAdd.classList.remove('hidden');
-                readyCode.textContent = lastScannedCode;
+                editablePartNumber.value = lastScannedCode;
+                editablePartNumber.readOnly = true;
+                document.getElementById('editBtn').textContent = '✏️ Edit';
                 addBtn.classList.remove('hidden');
+                addBtn.textContent = 'Add Item to List';
             } else {
                 readyToAdd.classList.add('hidden');
                 addBtn.classList.add('hidden');
@@ -745,6 +785,78 @@
                 
                 sendBtn.classList.remove('hidden');
                 sendBtn.textContent = `Send to SharePoint (${scannedItems.length} items)`;
+            }
+        }
+        
+        function addManualEntry() {
+            const manualInput = document.getElementById('manualPartNumber');
+            const partNumber = manualInput.value.trim();
+            
+            if (!partNumber) {
+                showStatus('Please enter a part number', 'error');
+                return;
+            }
+            
+            // Set as current scanned code and show in ready section
+            lastScannedCode = partNumber;
+            document.getElementById('commentInput').value = '';
+            manualInput.value = '';
+            updateUI();
+            showStatus('📝 Manual entry ready to add', 'info');
+        }
+        
+        function addItemToList() {
+            if (!lastScannedCode) {
+                showStatus('No item ready to add', 'error');
+                return;
+            }
+            
+            const comments = document.getElementById('commentInput').value.trim();
+            const parsed = parseQRCode(lastScannedCode);
+            const newItem = {
+                ...parsed,
+                comments: comments,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Check for duplicates
+            const isDuplicate = scannedItems.some(item => 
+                item.partNumber === newItem.partNumber && item.description === newItem.description
+            );
+            
+            if (!isDuplicate) {
+                scannedItems.push(newItem);
+                showStatus(`✅ Added: ${newItem.partNumber}`, 'success');
+            } else {
+                showStatus('Item already in list', 'info');
+            }
+            
+            // Always clear for next item (even if duplicate)
+            document.getElementById('commentInput').value = '';
+            lastScannedCode = '';
+            updateUI();
+        }
+        
+        function toggleEdit() {
+            const editablePartNumber = document.getElementById('editablePartNumber');
+            const editBtn = document.getElementById('editBtn');
+            
+            if (editablePartNumber.readOnly) {
+                editablePartNumber.readOnly = false;
+                editablePartNumber.focus();
+                editablePartNumber.select();
+                editBtn.textContent = '✅ Save';
+            } else {
+                const newValue = editablePartNumber.value.trim();
+                if (newValue) {
+                    lastScannedCode = newValue;
+                    editablePartNumber.readOnly = true;
+                    editBtn.textContent = '✏️ Edit';
+                    showStatus('Part number updated', 'info');
+                } else {
+                    showStatus('Part number cannot be empty', 'error');
+                    editablePartNumber.focus();
+                }
             }
         }
         
@@ -826,12 +938,12 @@
                 
                 qrScanner = new QrScanner(video, result => {
                     handleNewScan(result.data);
-                    stopCamera(); // Auto-stop after scan like iOS app
+                    // Don't auto-stop, let user decide when to stop
                 }, {
                     preferredCamera: 'environment',
                     highlightScanRegion: false,
                     highlightCodeOutline: false,
-                    maxScansPerSecond: 3,
+                    maxScansPerSecond: 2, // Reduced for better performance
                     returnDetailedScanResult: true,
                 });
                 
