@@ -9,6 +9,36 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        .manual-entry-section {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px dashed #cbd5e1;
+        }
+        
+        .manual-header h3 {
+            color: #374151;
+            font-size: 16px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        
+        .manual-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+            font-family: inherit;
+        }
+        
+        .manual-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        
         @media (max-width: 480px) {
             .container {
                 margin: 0;
@@ -540,8 +570,17 @@
             <button class="btn" id="startBtn" onclick="startCamera()">Start Scan</button>
             <button class="btn btn-red hidden" id="stopBtn" onclick="stopCamera()">Stop Scan</button>
             
+            <!-- Manual Entry Section -->
+            <div class="manual-entry-section">
+                <div class="manual-header">
+                    <h3>Or Enter Manually:</h3>
+                </div>
+                <input type="text" id="manualPartNumber" class="manual-input" placeholder="Enter part number manually..." autocapitalization="none">
+                <button class="btn btn-green" id="manualAddBtn" onclick="addManualEntry()">Use Manual Entry</button>
+            </div>
+            
             <!-- Add Item Button (only shows when QR code is ready) -->
-            <button class="btn btn-green hidden" id="addBtn" onclick="addItemToList()">Add Item to List</button>
+            <button class="btn btn-green hidden" id="addBtn" onclick="addItemToList()">Add Scanned Item to List</button>
             
             <!-- Comments Section -->
             <div class="comment-section">
