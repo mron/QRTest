@@ -1,4 +1,4 @@
-i<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -318,7 +318,20 @@ i<!DOCTYPE html>
                 </div>
             </div>
             
+            <div style="margin-bottom: 20px;">
+                <label for="commentInput" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Comments (optional):</label>
+                <div style="position: relative;">
+                    <textarea id="commentInput" class="url-input" placeholder="Add comments about this scan..." rows="3" style="padding-right: 50px; resize: vertical; min-height: 80px;"></textarea>
+                    <button id="voiceBtn" onclick="toggleVoiceInput()" style="position: absolute; right: 8px; top: 8px; background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; border-radius: 4px; transition: background-color 0.3s;" title="Voice input">🎤</button>
+                </div>
+                <div id="voiceStatus" style="font-size: 12px; color: #6b7280; margin-top: 4px; min-height: 16px;"></div>
+            </div>
+            
             <input type="text" class="url-input" id="urlInput" placeholder="Enter your Power Automate URL here" />
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <button type="button" onclick="saveUrl()" style="background: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; cursor: pointer;">Save URL</button>
+                <button type="button" onclick="clearUrl()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; cursor: pointer;">Clear</button>
+            </div>
             
             <button class="btn btn-secondary" id="sendBtn" onclick="sendToSharePoint()" disabled>
                 Send to SharePoint (0 items)
@@ -333,6 +346,8 @@ i<!DOCTYPE html>
         let qrScanner;
         let scannedQRCodes = [];
         let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        let recognition;
+        let isListening = false;
         
         function updateUI() {
             const listContainer = document.getElementById('scannedList');
@@ -524,7 +539,9 @@ i<!DOCTYPE html>
         
         async function sendToSharePoint() {
             const urlInput = document.getElementById('urlInput');
+            const commentInput = document.getElementById('commentInput');
             const url = urlInput.value.trim();
+            const comments = commentInput.value.trim();
             
             if (!url) {
                 showStatus('Please enter your Power Automate URL', 'error');
@@ -545,13 +562,17 @@ i<!DOCTYPE html>
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        qrCodes: scannedQRCodes
+                        qrCodes: scannedQRCodes,
+                        comments: comments,
+                        timestamp: new Date().toISOString(),
+                        userAgent: navigator.userAgent
                     })
                 });
                 
                 if (response.ok) {
                     showStatus(`✅ Successfully sent ${scannedQRCodes.length} items to SharePoint!`, 'success');
                     scannedQRCodes = [];
+                    commentInput.value = ''; // Clear comments
                     updateUI();
                 } else {
                     showStatus(`❌ Error: ${response.status} ${response.statusText}`, 'error');
@@ -580,8 +601,122 @@ i<!DOCTYPE html>
             updateUI();
         });
         
+        // Voice input functions
+        function initializeVoiceInput() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+                
+                recognition.onstart = function() {
+                    isListening = true;
+                    document.getElementById('voiceBtn').textContent = '🔴';
+                    document.getElementById('voiceStatus').textContent = 'Listening... (tap mic to stop)';
+                };
+                
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    const commentInput = document.getElementById('commentInput');
+                    
+                    if (commentInput.value.trim()) {
+                        commentInput.value += ' ' + transcript;
+                    } else {
+                        commentInput.value = transcript;
+                    }
+                    
+                    document.getElementById('voiceStatus').textContent = `Added: "${transcript}"`;
+                };
+                
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    document.getElementById('voiceStatus').textContent = 'Voice input error: ' + event.error;
+                    stopVoiceInput();
+                };
+                
+                recognition.onend = function() {
+                    stopVoiceInput();
+                };
+            } else {
+                document.getElementById('voiceBtn').style.display = 'none';
+                document.getElementById('voiceStatus').textContent = 'Voice input not supported in this browser';
+            }
+        }
+        
+        function toggleVoiceInput() {
+            if (!recognition) {
+                showStatus('Voice input not available', 'error');
+                return;
+            }
+            
+            if (isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+        
+        function stopVoiceInput() {
+            isListening = false;
+            document.getElementById('voiceBtn').textContent = '🎤';
+            setTimeout(() => {
+                document.getElementById('voiceStatus').textContent = '';
+            }, 3000);
+        }
+        
+        // URL management functions
+        function saveUrl() {
+            const urlInput = document.getElementById('urlInput');
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                showStatus('Please enter a URL first', 'error');
+                return;
+            }
+            
+            // Store in browser's local storage (only accessible to this domain)
+            try {
+                const urls = JSON.parse(localStorage.getItem('qr_scanner_urls') || '[]');
+                if (!urls.includes(url)) {
+                    urls.push(url);
+                    localStorage.setItem('qr_scanner_urls', JSON.stringify(urls));
+                }
+                localStorage.setItem('qr_scanner_last_url', url);
+                showStatus('URL saved securely in browser', 'success');
+            } catch (error) {
+                showStatus('Could not save URL', 'error');
+            }
+        }
+        
+        function clearUrl() {
+            try {
+                localStorage.removeItem('qr_scanner_urls');
+                localStorage.removeItem('qr_scanner_last_url');
+                document.getElementById('urlInput').value = '';
+                updateUI();
+                showStatus('Saved URLs cleared', 'info');
+            } catch (error) {
+                showStatus('Could not clear URLs', 'error');
+            }
+        }
+        
+        function loadSavedUrl() {
+            try {
+                const lastUrl = localStorage.getItem('qr_scanner_last_url');
+                if (lastUrl) {
+                    document.getElementById('urlInput').value = lastUrl;
+                    updateUI();
+                }
+            } catch (error) {
+                console.log('Could not load saved URL');
+            }
+        }
+        
         // Initialize
         updateUI();
+        initializeVoiceInput();
+        loadSavedUrl();
         
         console.log('QR Scanner initialized', { isIOS });
     </script>
