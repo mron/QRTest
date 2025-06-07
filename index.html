@@ -174,13 +174,50 @@
             box-shadow: none;
         }
         
-        .btn-secondary {
+        .btn-green {
             background: linear-gradient(45deg, #10b981, #059669);
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
         
-        .btn-secondary:hover {
+        .btn-green:hover {
             box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+        }
+        
+        .btn-purple {
+            background: linear-gradient(45deg, #8b5cf6, #7c3aed);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+        
+        .btn-purple:hover {
+            box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+        }
+        
+        .btn-red {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+        
+        .btn-red:hover {
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
+        }
+        
+        .ready-to-add {
+            background: #d1fae5;
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+        
+        .ready-to-add h3 {
+            color: #065f46;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+        
+        .ready-to-add p {
+            color: #047857;
+            word-break: break-all;
         }
         
         .scanned-list {
@@ -213,6 +250,19 @@
         .item-desc {
             color: #64748b;
             font-size: 14px;
+            margin-bottom: 4px;
+        }
+        
+        .item-comment {
+            color: #3b82f6;
+            font-size: 12px;
+            font-style: italic;
+        }
+        
+        .item-time {
+            color: #9ca3af;
+            font-size: 11px;
+            margin-top: 4px;
         }
         
         .status {
@@ -241,19 +291,62 @@
             border: 1px solid #3b82f6;
         }
         
-        .url-input {
+        .comment-section {
+            margin-bottom: 20px;
+        }
+        
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .comment-header h3 {
+            color: #374151;
+            font-size: 16px;
+        }
+        
+        .voice-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        .voice-btn:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        
+        .voice-btn.recording {
+            color: #ef4444;
+            animation: pulse 1s infinite;
+        }
+        
+        .comment-input {
             width: 100%;
+            min-height: 80px;
             padding: 12px;
             border: 2px solid #e2e8f0;
             border-radius: 8px;
             font-size: 14px;
-            margin-bottom: 16px;
-            transition: border-color 0.3s;
+            resize: vertical;
+            font-family: inherit;
         }
         
-        .url-input:focus {
+        .comment-input:focus {
             outline: none;
             border-color: #3b82f6;
+        }
+        
+        .voice-status {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+            min-height: 16px;
         }
         
         .hidden {
@@ -295,7 +388,7 @@
                 <video id="video" autoplay playsinline muted webkit-playsinline></video>
                 <div class="scanner-placeholder" id="placeholder">
                     <div style="font-size: 48px; margin-bottom: 16px;">📷</div>
-                    <div>Click "Start Camera" to begin scanning</div>
+                    <div>Click "Start Scan" to begin scanning</div>
                 </div>
                 <div class="scanner-active" id="scannerActive">
                     <div style="font-size: 48px; margin-bottom: 16px;">📱</div>
@@ -309,65 +402,91 @@
                 Camera is active but video preview may not show on iOS Safari. Scanner is still working!
             </div>
             
-            <button class="btn" id="startBtn" onclick="startCamera()">Start Camera</button>
-            <button class="btn hidden" id="stopBtn" onclick="stopCamera()">Stop Camera</button>
+            <!-- Control Buttons -->
+            <button class="btn" id="startBtn" onclick="startCamera()">Start Scan</button>
+            <button class="btn btn-red hidden" id="stopBtn" onclick="stopCamera()">Stop Scan</button>
             
-            <div class="scanned-list" id="scannedList">
-                <div style="text-align: center; color: #64748b; font-style: italic;">
-                    No QR codes scanned yet
+            <!-- Add Item Button (only shows when QR code is ready) -->
+            <button class="btn btn-green hidden" id="addBtn" onclick="addItemToList()">Add Item to List</button>
+            
+            <!-- Comments Section -->
+            <div class="comment-section">
+                <div class="comment-header">
+                    <h3>Comments for next item:</h3>
+                    <button class="voice-btn" id="voiceBtn" onclick="toggleVoiceInput()" title="Voice input">🎤</button>
                 </div>
+                <textarea id="commentInput" class="comment-input" placeholder="Add comments about this item..."></textarea>
+                <div id="voiceStatus" class="voice-status"></div>
             </div>
             
-            <div style="margin-bottom: 20px;">
-                <label for="commentInput" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Comments (optional):</label>
-                <div style="position: relative;">
-                    <textarea id="commentInput" class="url-input" placeholder="Add comments about this scan..." rows="3" style="padding-right: 50px; resize: vertical; min-height: 80px;"></textarea>
-                    <button id="voiceBtn" onclick="toggleVoiceInput()" style="position: absolute; right: 8px; top: 8px; background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; border-radius: 4px; transition: background-color 0.3s;" title="Voice input">🎤</button>
-                </div>
-                <div id="voiceStatus" style="font-size: 12px; color: #6b7280; margin-top: 4px; min-height: 16px;"></div>
+            <!-- Ready to Add Section -->
+            <div id="readyToAdd" class="ready-to-add hidden">
+                <h3>Ready to Add:</h3>
+                <p id="readyCode"></p>
             </div>
             
-            <input type="text" class="url-input" id="urlInput" placeholder="Enter your Power Automate URL here" />
-            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                <button type="button" onclick="saveUrl()" style="background: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; cursor: pointer;">Save URL</button>
-                <button type="button" onclick="clearUrl()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; cursor: pointer;">Clear</button>
-            </div>
-            
-            <button class="btn btn-secondary" id="sendBtn" onclick="sendToSharePoint()" disabled>
+            <!-- Send to SharePoint Button -->
+            <button class="btn btn-purple hidden" id="sendBtn" onclick="sendToSharePoint()">
                 Send to SharePoint (0 items)
             </button>
             
+            <!-- Status Messages -->
             <div id="status"></div>
+            
+            <!-- Scanned Items List -->
+            <div class="scanned-list" id="scannedList">
+                <div style="text-align: center; color: #64748b; font-style: italic;">
+                    No items added yet
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"></script>
     <script>
         let qrScanner;
-        let scannedQRCodes = [];
+        let scannedItems = [];
+        let lastScannedCode = '';
         let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         let recognition;
         let isListening = false;
         
+        // Configuration - Replace with your actual URL or use from build process
+        const SHAREPOINT_URL = 'YOUR_POWER_AUTOMATE_URL_HERE'; // Replace this with your actual URL
+        
         function updateUI() {
             const listContainer = document.getElementById('scannedList');
             const sendBtn = document.getElementById('sendBtn');
+            const addBtn = document.getElementById('addBtn');
+            const readyToAdd = document.getElementById('readyToAdd');
+            const readyCode = document.getElementById('readyCode');
             
-            if (scannedQRCodes.length === 0) {
-                listContainer.innerHTML = '<div style="text-align: center; color: #64748b; font-style: italic;">No QR codes scanned yet</div>';
-                sendBtn.disabled = true;
-                sendBtn.textContent = 'Send to SharePoint (0 items)';
+            // Update ready to add section
+            if (lastScannedCode) {
+                readyToAdd.classList.remove('hidden');
+                readyCode.textContent = lastScannedCode;
+                addBtn.classList.remove('hidden');
             } else {
-                listContainer.innerHTML = scannedQRCodes.map(item => `
+                readyToAdd.classList.add('hidden');
+                addBtn.classList.add('hidden');
+            }
+            
+            // Update items list
+            if (scannedItems.length === 0) {
+                listContainer.innerHTML = '<div style="text-align: center; color: #64748b; font-style: italic;">No items added yet</div>';
+                sendBtn.classList.add('hidden');
+            } else {
+                listContainer.innerHTML = scannedItems.map(item => `
                     <div class="scanned-item">
                         <div class="item-part">${item.partNumber}</div>
                         <div class="item-desc">${item.description}</div>
+                        ${item.comments ? `<div class="item-comment">💬 ${item.comments}</div>` : ''}
+                        <div class="item-time">${new Date(item.timestamp).toLocaleTimeString()}</div>
                     </div>
                 `).join('');
                 
-                const urlInput = document.getElementById('urlInput');
-                sendBtn.disabled = !urlInput.value.trim();
-                sendBtn.textContent = `Send to SharePoint (${scannedQRCodes.length} items)`;
+                sendBtn.classList.remove('hidden');
+                sendBtn.textContent = `Send to SharePoint (${scannedItems.length} items)`;
             }
         }
         
@@ -387,27 +506,52 @@
             }
         }
         
-        function addScannedItem(qrData) {
-            const parsed = parseQRCode(qrData);
+        function handleNewScan(qrData) {
+            lastScannedCode = qrData;
+            // Clear comments when starting new scan
+            document.getElementById('commentInput').value = '';
+            updateUI();
+            showStatus('📱 Scanned: Ready to add to list', 'info');
+        }
+        
+        function addItemToList() {
+            if (!lastScannedCode) {
+                showStatus('No QR code scanned yet', 'error');
+                return;
+            }
             
-            const isDuplicate = scannedQRCodes.some(item => 
-                item.partNumber === parsed.partNumber && item.description === parsed.description
+            const comments = document.getElementById('commentInput').value.trim();
+            const parsed = parseQRCode(lastScannedCode);
+            const newItem = {
+                ...parsed,
+                comments: comments,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Check for duplicates
+            const isDuplicate = scannedItems.some(item => 
+                item.partNumber === newItem.partNumber && item.description === newItem.description
             );
             
             if (!isDuplicate) {
-                scannedQRCodes.push(parsed);
-                updateUI();
-                showStatus(`✅ Scanned: ${parsed.partNumber}`, 'success');
-                
-                // Visual feedback for successful scan
-                const overlay = document.getElementById('overlay');
-                overlay.style.borderColor = '#10b981';
-                setTimeout(() => {
-                    overlay.style.borderColor = '#3b82f6';
-                }, 500);
+                scannedItems.push(newItem);
+                showStatus(`✅ Added: ${newItem.partNumber}`, 'success');
             } else {
-                showStatus('Duplicate QR code - already scanned', 'info');
+                showStatus('Item already in list', 'info');
             }
+            
+            // Always clear for next item (even if duplicate)
+            document.getElementById('commentInput').value = '';
+            lastScannedCode = '';
+            updateUI();
+        }
+        
+        function clearAllItems() {
+            scannedItems = [];
+            lastScannedCode = '';
+            document.getElementById('commentInput').value = '';
+            updateUI();
+            showStatus('All items cleared', 'info');
         }
         
         async function startCamera() {
@@ -422,32 +566,28 @@
                 
                 showStatus('Starting camera...', 'info');
                 
-                // Create QR Scanner instance
                 qrScanner = new QrScanner(video, result => {
-                    addScannedItem(result.data);
+                    handleNewScan(result.data);
+                    stopCamera(); // Auto-stop after scan like iOS app
                 }, {
                     preferredCamera: 'environment',
-                    highlightScanRegion: false, // Disable built-in highlight
+                    highlightScanRegion: false,
                     highlightCodeOutline: false,
                     maxScansPerSecond: 3,
                     returnDetailedScanResult: true,
                 });
                 
-                // Start the scanner
                 await qrScanner.start();
                 
-                // Update UI immediately
                 placeholder.style.display = 'none';
                 overlay.classList.add('active');
                 startBtn.classList.add('hidden');
                 stopBtn.classList.remove('hidden');
                 
-                // Try to show video, but don't fail if it doesn't work
                 setTimeout(() => {
                     try {
                         video.style.display = 'block';
                         video.play().catch(() => {
-                            // If video fails to play, show the scanner active overlay
                             console.log('Video play failed, showing scanner active overlay');
                             video.style.display = 'none';
                             scannerActive.style.display = 'flex';
@@ -458,7 +598,6 @@
                     }
                 }, 100);
                 
-                // Show iOS info if needed
                 if (isIOS) {
                     cameraInfo.style.display = 'block';
                     scannerActive.style.display = 'flex';
@@ -466,16 +605,13 @@
                 
                 showStatus('Camera active - point at QR codes to scan', 'success');
                 
-                // Monitor for video stream
                 let videoCheckCount = 0;
                 const checkVideo = setInterval(() => {
                     videoCheckCount++;
                     if (video.videoWidth > 0 && video.videoHeight > 0) {
-                        // Video is working
                         scannerActive.style.display = 'none';
                         clearInterval(checkVideo);
                     } else if (videoCheckCount > 10) {
-                        // Video not working after 5 seconds, show scanner active
                         scannerActive.style.display = 'flex';
                         clearInterval(checkVideo);
                     }
@@ -483,23 +619,7 @@
                 
             } catch (error) {
                 console.error('Camera error:', error);
-                
-                // Reset UI on error
-                const video = document.getElementById('video');
-                const placeholder = document.getElementById('placeholder');
-                const scannerActive = document.getElementById('scannerActive');
-                const overlay = document.getElementById('overlay');
-                const startBtn = document.getElementById('startBtn');
-                const stopBtn = document.getElementById('stopBtn');
-                const cameraInfo = document.getElementById('cameraInfo');
-                
-                video.style.display = 'none';
-                scannerActive.style.display = 'none';
-                placeholder.style.display = 'flex';
-                overlay.classList.remove('active');
-                startBtn.classList.remove('hidden');
-                stopBtn.classList.add('hidden');
-                cameraInfo.style.display = 'none';
+                resetCameraUI();
                 
                 if (error.name === 'NotAllowedError') {
                     showStatus('❌ Camera permission denied. Please allow camera access and try again.', 'error');
@@ -518,6 +638,11 @@
                 qrScanner = null;
             }
             
+            resetCameraUI();
+            showStatus('Camera stopped', 'info');
+        }
+        
+        function resetCameraUI() {
             const video = document.getElementById('video');
             const placeholder = document.getElementById('placeholder');
             const scannerActive = document.getElementById('scannerActive');
@@ -533,46 +658,45 @@
             startBtn.classList.remove('hidden');
             stopBtn.classList.add('hidden');
             cameraInfo.style.display = 'none';
-            
-            showStatus('Camera stopped', 'info');
         }
         
         async function sendToSharePoint() {
-            const urlInput = document.getElementById('urlInput');
-            const commentInput = document.getElementById('commentInput');
-            const url = urlInput.value.trim();
-            const comments = commentInput.value.trim();
-            
-            if (!url) {
-                showStatus('Please enter your Power Automate URL', 'error');
+            if (!SHAREPOINT_URL || SHAREPOINT_URL === 'YOUR_POWER_AUTOMATE_URL_HERE') {
+                showStatus('SharePoint URL not configured', 'error');
                 return;
             }
             
-            if (scannedQRCodes.length === 0) {
-                showStatus('No QR codes to send', 'error');
+            if (scannedItems.length === 0) {
+                showStatus('No items to send', 'error');
                 return;
             }
             
             try {
                 showStatus('Sending to SharePoint...', 'info');
                 
-                const response = await fetch(url, {
+                const response = await fetch(SHAREPOINT_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        qrCodes: scannedQRCodes,
-                        comments: comments,
+                        qrCodes: scannedItems.map(item => ({
+                            partNumber: item.partNumber,
+                            description: item.description,
+                            comments: item.comments,
+                            timestamp: item.timestamp
+                        })),
+                        comments: '', // No session comments in this version
                         timestamp: new Date().toISOString(),
                         userAgent: navigator.userAgent
                     })
                 });
                 
                 if (response.ok) {
-                    showStatus(`✅ Successfully sent ${scannedQRCodes.length} items to SharePoint!`, 'success');
-                    scannedQRCodes = [];
-                    commentInput.value = ''; // Clear comments
+                    showStatus(`✅ Successfully sent ${scannedItems.length} items to SharePoint!`, 'success');
+                    scannedItems = [];
+                    lastScannedCode = '';
+                    document.getElementById('commentInput').value = '';
                     updateUI();
                 } else {
                     showStatus(`❌ Error: ${response.status} ${response.statusText}`, 'error');
@@ -596,11 +720,6 @@
             }
         }
         
-        // Enable send button when URL is entered
-        document.getElementById('urlInput').addEventListener('input', function() {
-            updateUI();
-        });
-        
         // Voice input functions
         function initializeVoiceInput() {
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -613,6 +732,7 @@
                 recognition.onstart = function() {
                     isListening = true;
                     document.getElementById('voiceBtn').textContent = '🔴';
+                    document.getElementById('voiceBtn').classList.add('recording');
                     document.getElementById('voiceStatus').textContent = 'Listening... (tap mic to stop)';
                 };
                 
@@ -660,63 +780,24 @@
         function stopVoiceInput() {
             isListening = false;
             document.getElementById('voiceBtn').textContent = '🎤';
+            document.getElementById('voiceBtn').classList.remove('recording');
             setTimeout(() => {
                 document.getElementById('voiceStatus').textContent = '';
             }, 3000);
         }
         
-        // URL management functions
-        function saveUrl() {
-            const urlInput = document.getElementById('urlInput');
-            const url = urlInput.value.trim();
-            
-            if (!url) {
-                showStatus('Please enter a URL first', 'error');
-                return;
-            }
-            
-            // Store in browser's local storage (only accessible to this domain)
-            try {
-                const urls = JSON.parse(localStorage.getItem('qr_scanner_urls') || '[]');
-                if (!urls.includes(url)) {
-                    urls.push(url);
-                    localStorage.setItem('qr_scanner_urls', JSON.stringify(urls));
-                }
-                localStorage.setItem('qr_scanner_last_url', url);
-                showStatus('URL saved securely in browser', 'success');
-            } catch (error) {
-                showStatus('Could not save URL', 'error');
-            }
-        }
-        
-        function clearUrl() {
-            try {
-                localStorage.removeItem('qr_scanner_urls');
-                localStorage.removeItem('qr_scanner_last_url');
-                document.getElementById('urlInput').value = '';
-                updateUI();
-                showStatus('Saved URLs cleared', 'info');
-            } catch (error) {
-                showStatus('Could not clear URLs', 'error');
-            }
-        }
-        
-        function loadSavedUrl() {
-            try {
-                const lastUrl = localStorage.getItem('qr_scanner_last_url');
-                if (lastUrl) {
-                    document.getElementById('urlInput').value = lastUrl;
-                    updateUI();
-                }
-            } catch (error) {
-                console.log('Could not load saved URL');
+        // Add clear all button functionality
+        function addClearAllButton() {
+            const listContainer = document.getElementById('scannedList');
+            if (scannedItems.length > 0) {
+                const clearButton = '<button onclick="clearAllItems()" style="margin-top: 10px; padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Clear All Items</button>';
+                listContainer.innerHTML += clearButton;
             }
         }
         
         // Initialize
         updateUI();
         initializeVoiceInput();
-        loadSavedUrl();
         
         console.log('QR Scanner initialized', { isIOS });
     </script>
