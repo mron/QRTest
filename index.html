@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Scanner - SharePoint Integration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 30px 20px;
+        }
+        
+        .scanner-container {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            background: #f8fafc;
+            border: 2px dashed #cbd5e1;
+        }
+        
+        #video {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            display: none;
+        }
+        
+        .scanner-placeholder {
+            height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 16px;
+        }
+        
+        .scanner-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border: 3px solid #3b82f6;
+            border-radius: 16px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .scanner-overlay.active {
+            opacity: 1;
+        }
+        
+        .scanner-overlay::before,
+        .scanner-overlay::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #3b82f6;
+        }
+        
+        .scanner-overlay::before {
+            top: -3px;
+            left: -3px;
+            border-right: none;
+            border-bottom: none;
+        }
+        
+        .scanner-overlay::after {
+            bottom: -3px;
+            right: -3px;
+            border-left: none;
+            border-top: none;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 16px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(45deg, #10b981, #059669);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-secondary:hover {
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+        }
+        
+        .scanned-list {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 120px;
+        }
+        
+        .scanned-item {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 4px solid #3b82f6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .scanned-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .item-part {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+        
+        .item-desc {
+            color: #64748b;
+            font-size: 14px;
+        }
+        
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 16px 0;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+        
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+        
+        .status.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #3b82f6;
+        }
+        
+        .url-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .url-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+                min-height: 100vh;
+            }
+            
+            body {
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 QR Scanner</h1>
+            <p>Scan QR codes and sync to SharePoint</p>
+        </div>
+        
+        <div class="content">
+            <div class="scanner-container">
+                <video id="video" autoplay playsinline></video>
+                <div class="scanner-placeholder" id="placeholder">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📷</div>
+                    <div>Click "Start Camera" to begin scanning</div>
+                </div>
+                <div class="scanner-overlay" id="overlay"></div>
+            </div>
+            
+            <button class="btn" id="startBtn" onclick="startCamera()">Start Camera</button>
+            <button class="btn hidden" id="stopBtn" onclick="stopCamera()">Stop Camera</button>
+            
+            <div class="scanned-list" id="scannedList">
+                <div style="text-align: center; color: #64748b; font-style: italic;">
+                    No QR codes scanned yet
+                </div>
+            </div>
+            
+            <input type="text" class="url-input" id="urlInput" placeholder="Enter your Power Automate URL here" />
+            
+            <button class="btn btn-secondary" id="sendBtn" onclick="sendToSharePoint()" disabled>
+                Send to SharePoint (0 items)
+            </button>
+            
+            <div id="status"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"></script>
+    <script>
+        let qrScanner;
+        let scannedQRCodes = [];
+        
+        function updateUI() {
+            const listContainer = document.getElementById('scannedList');
+            const sendBtn = document.getElementById('sendBtn');
+            
+            if (scannedQRCodes.length === 0) {
+                listContainer.innerHTML = '<div style="text-align: center; color: #64748b; font-style: italic;">No QR codes scanned yet</div>';
+                sendBtn.disabled = true;
+                sendBtn.textContent = 'Send to SharePoint (0 items)';
+            } else {
+                listContainer.innerHTML = scannedQRCodes.map(item => `
+                    <div class="scanned-item">
+                        <div class="item-part">${item.partNumber}</div>
+                        <div class="item-desc">${item.description}</div>
+                    </div>
+                `).join('');
+                
+                const urlInput = document.getElementById('urlInput');
+                sendBtn.disabled = !urlInput.value.trim();
+                sendBtn.textContent = `Send to SharePoint (${scannedQRCodes.length} items)`;
+            }
+        }
+        
+        function parseQRCode(data) {
+            // Try to parse QR code data - adjust this based on your QR code format
+            // Assuming format like "P12345|Widget Description" or JSON
+            try {
+                if (data.includes('|')) {
+                    const [partNumber, description] = data.split('|');
+                    return { partNumber: partNumber.trim(), description: description.trim() };
+                } else if (data.startsWith('{')) {
+                    const parsed = JSON.parse(data);
+                    return { partNumber: parsed.partNumber || 'Unknown', description: parsed.description || 'No description' };
+                } else {
+                    // Fallback - treat entire string as part number
+                    return { partNumber: data, description: 'Scanned QR Code' };
+                }
+            } catch (error) {
+                return { partNumber: data, description: 'Scanned QR Code' };
+            }
+        }
+        
+        function addScannedItem(qrData) {
+            const parsed = parseQRCode(qrData);
+            
+            // Check for duplicates
+            const isDuplicate = scannedQRCodes.some(item => 
+                item.partNumber === parsed.partNumber && item.description === parsed.description
+            );
+            
+            if (!isDuplicate) {
+                scannedQRCodes.push(parsed);
+                updateUI();
+                showStatus(`Scanned: ${parsed.partNumber}`, 'success');
+            } else {
+                showStatus('Duplicate QR code - already scanned', 'info');
+            }
+        }
+        
+        async function startCamera() {
+            try {
+                const video = document.getElementById('video');
+                const placeholder = document.getElementById('placeholder');
+                const overlay = document.getElementById('overlay');
+                const startBtn = document.getElementById('startBtn');
+                const stopBtn = document.getElementById('stopBtn');
+                
+                qrScanner = new QrScanner(video, result => {
+                    addScannedItem(result.data);
+                }, {
+                    preferredCamera: 'environment',
+                    highlightScanRegion: true,
+                    highlightCodeOutline: true,
+                });
+                
+                await qrScanner.start();
+                
+                video.style.display = 'block';
+                placeholder.style.display = 'none';
+                overlay.classList.add('active');
+                startBtn.classList.add('hidden');
+                stopBtn.classList.remove('hidden');
+                
+                showStatus('Camera started - point at QR codes to scan', 'info');
+            } catch (error) {
+                console.error('Camera error:', error);
+                showStatus('Camera access denied or not available', 'error');
+            }
+        }
+        
+        function stopCamera() {
+            if (qrScanner) {
+                qrScanner.stop();
+                qrScanner.destroy();
+                qrScanner = null;
+            }
+            
+            const video = document.getElementById('video');
+            const placeholder = document.getElementById('placeholder');
+            const overlay = document.getElementById('overlay');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            video.style.display = 'none';
+            placeholder.style.display = 'flex';
+            overlay.classList.remove('active');
+            startBtn.classList.remove('hidden');
+            stopBtn.classList.add('hidden');
+            
+            showStatus('Camera stopped', 'info');
+        }
+        
+        async function sendToSharePoint() {
+            const urlInput = document.getElementById('urlInput');
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                showStatus('Please enter your Power Automate URL', 'error');
+                return;
+            }
+            
+            if (scannedQRCodes.length === 0) {
+                showStatus('No QR codes to send', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('Sending to SharePoint...', 'info');
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        qrCodes: scannedQRCodes
+                    })
+                });
+                
+                if (response.ok) {
+                    showStatus(`✅ Successfully sent ${scannedQRCodes.length} items to SharePoint!`, 'success');
+                    scannedQRCodes = [];
+                    updateUI();
+                } else {
+                    showStatus(`❌ Error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                console.error('Send error:', error);
+                showStatus('❌ Network error - check your connection', 'error');
+            }
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    status.textContent = '';
+                    status.className = 'status';
+                }, 3000);
+            }
+        }
+        
+        // Enable send button when URL is entered
+        document.getElementById('urlInput').addEventListener('input', function() {
+            updateUI();
+        });
+        
+        // Initialize
+        updateUI();
+    </script>
+</body>
+</html>
