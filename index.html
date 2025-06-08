@@ -97,10 +97,103 @@
             border: 1px solid #f5c6cb;
         }
         
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
+        .input-section {
+            margin: 20px 0;
+        }
+        
+        .input-section label {
+            display: block;
+            margin: 15px 0 5px 0;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .input-section input,
+        .input-section textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        
+        .input-section input:focus,
+        .input-section textarea:focus {
+            outline: none;
+            border-color: #007AFF;
+        }
+        
+        .items-section {
+            margin: 20px 0;
+        }
+        
+        .items-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        #items-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            background: #fafafa;
+        }
+        
+        .item {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 4px solid #007AFF;
+        }
+        
+        .item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .item-part {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .item-desc {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        
+        .item-comment {
+            color: #007AFF;
+            font-size: 12px;
+            font-style: italic;
+        }
+        
+        .item-time {
+            color: #999;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+        
+        .no-items {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            padding: 20px;
+        }
+        
+        #clear-all {
+            background: #FF3B30;
+            margin-top: 10px;
+        }
+        
+        #clear-all:hover {
+            background: #D70015;
         }
     </style>
 </head>
@@ -134,12 +227,18 @@
     <script>
         const video = document.getElementById('qr-video');
         const qrResult = document.getElementById('qr-result');
-        const qrTimestamp = document.getElementById('qr-timestamp');
         const startButton = document.getElementById('start-button');
         const stopButton = document.getElementById('stop-button');
         const statusDiv = document.getElementById('status');
+        const partNumberInput = document.getElementById('part-number');
+        const commentsInput = document.getElementById('comments');
+        const addItemButton = document.getElementById('add-item');
+        const itemsList = document.getElementById('items-list');
+        const itemCount = document.getElementById('item-count');
+        const clearAllButton = document.getElementById('clear-all');
         
         let scanner = null;
+        let scannedItems = [];
         
         function showStatus(message, type = 'info') {
             statusDiv.textContent = message;
@@ -153,24 +252,117 @@
             }
         }
         
+        function parseQRCode(data) {
+            try {
+                if (data.includes('|')) {
+                    const [partNumber, description] = data.split('|');
+                    return { partNumber: partNumber.trim(), description: description.trim() };
+                } else if (data.startsWith('{')) {
+                    const parsed = JSON.parse(data);
+                    return { partNumber: parsed.partNumber || 'Unknown', description: parsed.description || 'No description' };
+                } else {
+                    return { partNumber: data, description: 'Scanned QR Code' };
+                }
+            } catch (error) {
+                return { partNumber: data, description: 'Scanned QR Code' };
+            }
+        }
+        
         function setResult(result) {
             console.log('QR Code detected:', result.data);
             qrResult.textContent = result.data;
-            qrTimestamp.textContent = new Date().toLocaleString();
-            qrResult.style.color = 'teal';
+            
+            // Auto-populate part number field
+            partNumberInput.value = result.data;
+            updateAddButton();
             
             // Visual feedback
-            showStatus('✅ QR Code scanned!', 'success');
+            showStatus('✅ QR Code scanned! Part number populated.', 'success');
+            
+            // Auto-stop camera after successful scan
+            scanner.stop();
+            startButton.disabled = false;
+            stopButton.disabled = true;
+            showStatus('📱 Ready to add item to list', 'info');
             
             // Optional: vibrate on mobile
             if (navigator.vibrate) {
                 navigator.vibrate(200);
             }
+        }
+        
+        function updateAddButton() {
+            const partNumber = partNumberInput.value.trim();
+            addItemButton.disabled = !partNumber;
+        }
+        
+        function updateItemsList() {
+            itemCount.textContent = scannedItems.length;
             
-            clearTimeout(qrResult.highlightTimeout);
-            qrResult.highlightTimeout = setTimeout(() => {
-                qrResult.style.color = 'inherit';
-            }, 2000);
+            if (scannedItems.length === 0) {
+                itemsList.innerHTML = '<div class="no-items">No items added yet</div>';
+                clearAllButton.style.display = 'none';
+            } else {
+                itemsList.innerHTML = scannedItems.map(item => `
+                    <div class="item">
+                        <div class="item-part">${item.partNumber}</div>
+                        <div class="item-desc">${item.description}</div>
+                        ${item.comments ? `<div class="item-comment">💬 ${item.comments}</div>` : ''}
+                        <div class="item-time">${new Date(item.timestamp).toLocaleTimeString()}</div>
+                    </div>
+                `).join('');
+                clearAllButton.style.display = 'block';
+            }
+        }
+        
+        function addItemToList() {
+            const partNumber = partNumberInput.value.trim();
+            const comments = commentsInput.value.trim();
+            
+            if (!partNumber) {
+                showStatus('Please enter or scan a part number', 'error');
+                return;
+            }
+            
+            const parsed = parseQRCode(partNumber);
+            const newItem = {
+                ...parsed,
+                comments: comments,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Check for duplicates
+            const isDuplicate = scannedItems.some(item => 
+                item.partNumber === newItem.partNumber && item.description === newItem.description
+            );
+            
+            if (!isDuplicate) {
+                scannedItems.push(newItem);
+                showStatus(`✅ Added: ${newItem.partNumber}`, 'success');
+            } else {
+                showStatus('Item already in list', 'info');
+            }
+            
+            // Clear for next item
+            partNumberInput.value = '';
+            commentsInput.value = '';
+            qrResult.textContent = 'None';
+            updateAddButton();
+            updateItemsList();
+            
+            // Hide keyboard on mobile
+            partNumberInput.blur();
+            commentsInput.blur();
+        }
+        
+        function clearAllItems() {
+            scannedItems = [];
+            partNumberInput.value = '';
+            commentsInput.value = '';
+            qrResult.textContent = 'None';
+            updateAddButton();
+            updateItemsList();
+            showStatus('All items cleared', 'info');
         }
         
         // Initialize QR Scanner (same as working demo)
@@ -182,6 +374,11 @@
             highlightCodeOutline: true,
             preferredCamera: 'environment'
         });
+        
+        // Event Listeners
+        partNumberInput.addEventListener('input', updateAddButton);
+        addItemButton.addEventListener('click', addItemToList);
+        clearAllButton.addEventListener('click', clearAllItems);
         
         // Start button
         startButton.addEventListener('click', async () => {
@@ -224,7 +421,11 @@
             }
         });
         
-        console.log('QR Scanner initialized');
+        // Initialize
+        updateAddButton();
+        updateItemsList();
+        
+        console.log('QR Scanner with core functionality initialized');
     </script>
 </body>
 </html>
