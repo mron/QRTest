@@ -1,4 +1,4 @@
-i<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -946,3 +946,255 @@ i<!DOCTYPE html>
         }
         
         function stopCamera() {
+            if (qrScanner) {
+                qrScanner.stop();
+                qrScanner.destroy();
+                qrScanner = null;
+            }
+            
+            resetCameraUI();
+            showStatus('Camera stopped', 'info');
+        }
+        
+        function resetCameraUI() {
+            const video = document.getElementById('video');
+            const placeholder = document.getElementById('placeholder');
+            const scannerActive = document.getElementById('scannerActive');
+            const overlay = document.getElementById('overlay');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const cameraInfo = document.getElementById('cameraInfo');
+            
+            video.style.display = 'none';
+            scannerActive.style.display = 'none';
+            placeholder.style.display = 'flex';
+            overlay.classList.remove('active');
+            startBtn.classList.remove('hidden');
+            stopBtn.classList.add('hidden');
+            cameraInfo.style.display = 'none';
+        }
+        
+        async function sendToSharePoint() {
+            if (!checkURLConfiguration()) {
+                return;
+            }
+            
+            if (scannedItems.length === 0) {
+                showStatus('No items to send', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('Checking items in SharePoint...', 'info');
+                
+                const response = await fetch(sharePointURL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        qrCodes: scannedItems.map(item => ({
+                            partNumber: item.partNumber,
+                            description: item.description,
+                            comments: item.comments,
+                            timestamp: item.timestamp
+                        })),
+                        comments: '',
+                        timestamp: new Date().toISOString(),
+                        userAgent: navigator.userAgent,
+                        checkExistingItems: true
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    handleSharePointResponse(data);
+                } else {
+                    showStatus(`❌ Error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                console.error('Send error:', error);
+                showStatus('❌ Network error - check your connection and URL', 'error');
+            }
+        }
+        
+        function handleSharePointResponse(data) {
+            try {
+                const itemsAdded = data.itemsAdded || 0;
+                const itemsSkipped = data.itemsSkipped || 0;
+                
+                let message = '✅ Success! ';
+                if (itemsAdded > 0 && itemsSkipped > 0) {
+                    message += `${itemsAdded} added, ${itemsSkipped} already in system`;
+                } else if (itemsAdded > 0) {
+                    message += `${itemsAdded} items added`;
+                } else if (itemsSkipped > 0) {
+                    message += `${itemsSkipped} items already in system`;
+                } else {
+                    message += 'All items processed';
+                }
+                
+                showStatus(message, 'success');
+                
+                // Show detailed results if available
+                if (data.itemDetails && data.itemDetails.length > 0) {
+                    setTimeout(() => {
+                        showResultsModal(data.itemDetails);
+                    }, 1000);
+                }
+                
+                // Clear items after successful send
+                scannedItems = [];
+                document.getElementById('partNumberInput').value = '';
+                document.getElementById('commentInput').value = '';
+                updateUI();
+                
+            } catch (error) {
+                console.error('Response parsing error:', error);
+                showStatus('✅ Successfully processed items!', 'success');
+                
+                // Clear items anyway
+                scannedItems = [];
+                document.getElementById('partNumberInput').value = '';
+                document.getElementById('commentInput').value = '';
+                updateUI();
+            }
+        }
+        
+        function showResultsModal(itemDetails) {
+            const modal = document.getElementById('resultsModal');
+            const subtitle = document.getElementById('resultsSubtitle');
+            const statsRow = document.getElementById('statsRow');
+            const resultsTable = document.getElementById('resultsTable');
+            
+            // Update subtitle
+            subtitle.textContent = `${itemDetails.length} items processed successfully`;
+            
+            // Calculate stats
+            const stats = {
+                added: itemDetails.filter(item => item.status.toLowerCase() === 'added').length,
+                ordered: itemDetails.filter(item => item.status.toLowerCase() === 'ordered').length,
+                received: itemDetails.filter(item => item.status.toLowerCase() === 'received').length,
+                notOrdered: itemDetails.filter(item => item.status.toLowerCase() === 'not ordered').length
+            };
+            
+            // Build stats row
+            statsRow.innerHTML = `
+                <div class="stat-badge added">
+                    <div class="stat-count">${stats.added}</div>
+                    <div class="stat-label">Added</div>
+                </div>
+                <div class="stat-badge ordered">
+                    <div class="stat-count">${stats.ordered}</div>
+                    <div class="stat-label">Ordered</div>
+                </div>
+                <div class="stat-badge received">
+                    <div class="stat-count">${stats.received}</div>
+                    <div class="stat-label">Received</div>
+                </div>
+                <div class="stat-badge not-ordered">
+                    <div class="stat-count">${stats.notOrdered}</div>
+                    <div class="stat-label">Not Ordered</div>
+                </div>
+            `;
+            
+            // Build results table
+            resultsTable.innerHTML = itemDetails.map(item => {
+                const statusClass = item.status.toLowerCase().replace(' ', '-');
+                const icon = getStatusIcon(item.status.toLowerCase());
+                
+                return `
+                    <div class="result-row ${statusClass}">
+                        <div class="result-icon">${icon}</div>
+                        <div class="result-info">
+                            <div class="result-part">${item.partNumber}</div>
+                            <div>
+                                <span class="result-status ${statusClass}">${item.status}</span>
+                                ${item.poNumber ? `<span class="result-po">PO: ${item.poNumber}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            modal.style.display = 'flex';
+        }
+        
+        function getStatusIcon(status) {
+            switch (status) {
+                case 'added': return '✅';
+                case 'ordered': return '⏰';
+                case 'received': return '📋';
+                case 'not ordered': return '⚠️';
+                default: return '❓';
+            }
+        }
+        
+        function closeResultsModal() {
+            document.getElementById('resultsModal').style.display = 'none';
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    status.textContent = '';
+                    status.className = 'status';
+                }, 4000);
+            }
+        }
+        
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load saved URL
+            loadSavedURL();
+            
+            // Update UI initially
+            updateUI();
+            
+            // Part number input listener
+            document.getElementById('partNumberInput').addEventListener('input', updateUI);
+            
+            // Mobile-friendly event listeners
+            document.addEventListener('touchstart', function() {}, true);
+            
+            // Handle keyboard events
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    const modal = document.getElementById('urlModal');
+                    if (modal.style.display === 'flex') {
+                        saveUrlFromModal();
+                    }
+                }
+                if (event.key === 'Escape') {
+                    closeModal();
+                    closeResultsModal();
+                }
+            });
+            
+            // Auto-show URL modal if no URL is configured
+            setTimeout(() => {
+                if (!sharePointURL) {
+                    showURLModal();
+                }
+            }, 500);
+        });
+        
+        // iOS Safari specific fixes
+        if (isIOS) {
+            console.log('iOS device detected - applying fixes');
+            
+            // Prevent zoom on input focus
+            const viewport = document.querySelector('meta[name="viewport"]');
+            if (viewport) {
+                viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+            }
+        }
+        
+        console.log('QR Scanner initialized', { isIOS, userAgent: navigator.userAgent });
+    </script>
+</body>
+</html>
