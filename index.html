@@ -365,6 +365,19 @@
             showStatus('All items cleared', 'info');
         }
         
+        // Event Listeners - Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            partNumberInput.addEventListener('input', updateAddButton);
+            addItemButton.addEventListener('click', addItemToList);
+            clearAllButton.addEventListener('click', clearAllItems);
+            
+            // Initialize
+            updateAddButton();
+            updateItemsList();
+            
+            console.log('Event listeners attached');
+        });
+        
         // Initialize QR Scanner (same as working demo)
         scanner = new QrScanner(video, result => setResult(result), {
             onDecodeError: error => {
@@ -374,11 +387,6 @@
             highlightCodeOutline: true,
             preferredCamera: 'environment'
         });
-        
-        // Event Listeners
-        partNumberInput.addEventListener('input', updateAddButton);
-        addItemButton.addEventListener('click', addItemToList);
-        clearAllButton.addEventListener('click', clearAllItems);
         
         // Start button
         startButton.addEventListener('click', async () => {
@@ -420,10 +428,6 @@
                 showStatus('📷 Camera ready - click Start to begin', 'info');
             }
         });
-        
-        // Initialize
-        updateAddButton();
-        updateItemsList();
         
         console.log('QR Scanner with core functionality initialized');
     </script>
