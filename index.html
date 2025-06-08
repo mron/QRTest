@@ -56,18 +56,15 @@
             background: #f8fafc;
             border: 2px dashed #cbd5e1;
             height: 300px;
+            line-height: 0;
         }
         
         #video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            display: none;
+            display: block;
             background: #000;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
         }
         
         .scanner-placeholder {
@@ -78,24 +75,15 @@
             justify-content: center;
             color: #64748b;
             font-size: 16px;
-            position: relative;
-            z-index: 2;
-        }
-        
-        .scanner-active {
-            height: 100%;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 16px;
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 3;
+            z-index: 2;
+        }
+        
+        .scanner-active {
+            display: none;
         }
         
         .scanner-overlay {
@@ -889,63 +877,35 @@
             try {
                 const video = document.getElementById('video');
                 const placeholder = document.getElementById('placeholder');
-                const scannerActive = document.getElementById('scannerActive');
                 const overlay = document.getElementById('overlay');
                 const startBtn = document.getElementById('startBtn');
                 const stopBtn = document.getElementById('stopBtn');
-                const cameraInfo = document.getElementById('cameraInfo');
                 
                 showStatus('Starting camera...', 'info');
                 
-                qrScanner = new QrScanner(video, result => {
-                    handleNewScan(result.data);
-                }, {
-                    preferredCamera: 'environment',
-                    highlightScanRegion: false,
-                    highlightCodeOutline: false,
-                    maxScansPerSecond: 2,
-                    returnDetailedScanResult: true,
-                });
+                // Simple QR Scanner setup like the working demo
+                if (!qrScanner) {
+                    qrScanner = new QrScanner(video, result => {
+                        handleNewScan(result.data);
+                    }, {
+                        onDecodeError: error => {
+                            // Silent error handling - don't spam console
+                        },
+                        highlightScanRegion: true,
+                        highlightCodeOutline: true,
+                        preferredCamera: 'environment'
+                    });
+                }
                 
                 await qrScanner.start();
                 
+                // Update UI
                 placeholder.style.display = 'none';
                 overlay.classList.add('active');
                 startBtn.classList.add('hidden');
                 stopBtn.classList.remove('hidden');
                 
-                setTimeout(() => {
-                    try {
-                        video.style.display = 'block';
-                        video.play().catch(() => {
-                            console.log('Video play failed, showing scanner active overlay');
-                            video.style.display = 'none';
-                            scannerActive.style.display = 'flex';
-                        });
-                    } catch (e) {
-                        console.log('Video setup failed:', e);
-                        scannerActive.style.display = 'flex';
-                    }
-                }, 100);
-                
-                if (isIOS) {
-                    cameraInfo.style.display = 'block';
-                    scannerActive.style.display = 'flex';
-                }
-                
                 showStatus('Camera active - point at QR codes to scan', 'success');
-                
-                let videoCheckCount = 0;
-                const checkVideo = setInterval(() => {
-                    videoCheckCount++;
-                    if (video.videoWidth > 0 && video.videoHeight > 0) {
-                        scannerActive.style.display = 'none';
-                        clearInterval(checkVideo);
-                    } else if (videoCheckCount > 10) {
-                        scannerActive.style.display = 'flex';
-                        clearInterval(checkVideo);
-                    }
-                }, 500);
                 
             } catch (error) {
                 console.error('Camera error:', error);
@@ -975,19 +935,14 @@
         function resetCameraUI() {
             const video = document.getElementById('video');
             const placeholder = document.getElementById('placeholder');
-            const scannerActive = document.getElementById('scannerActive');
             const overlay = document.getElementById('overlay');
             const startBtn = document.getElementById('startBtn');
             const stopBtn = document.getElementById('stopBtn');
-            const cameraInfo = document.getElementById('cameraInfo');
             
-            video.style.display = 'none';
-            scannerActive.style.display = 'none';
             placeholder.style.display = 'flex';
             overlay.classList.remove('active');
             startBtn.classList.remove('hidden');
             stopBtn.classList.add('hidden');
-            cameraInfo.style.display = 'none';
         }
         
         async function sendToSharePoint() {
