@@ -683,7 +683,23 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"></script>
+    <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
+    <script>
+        // QR Scanner fallback check
+        if (typeof QrScanner === 'undefined') {
+            console.error('QR Scanner library failed to load');
+            // Try alternative CDN
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js';
+            script.onload = function() {
+                console.log('QR Scanner loaded from fallback CDN');
+            };
+            script.onerror = function() {
+                console.error('Both CDNs failed to load QR Scanner');
+                alert('Camera scanning not available. You can still enter part numbers manually.');
+            };
+            document.head.appendChild(script);
+        }
     <script>
         let qrScanner;
         let scannedItems = [];
