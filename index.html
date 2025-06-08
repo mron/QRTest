@@ -272,18 +272,22 @@
             console.log('QR Code detected:', result.data);
             qrResult.textContent = result.data;
             
-            // Auto-populate part number field
-            partNumberInput.value = result.data;
-            updateAddButton();
+            // Auto-populate part number field (check if element exists)
+            if (partNumberInput) {
+                partNumberInput.value = result.data;
+                updateAddButton();
+            }
             
             // Visual feedback
             showStatus('✅ QR Code scanned! Part number populated.', 'success');
             
             // Auto-stop camera after successful scan
-            scanner.stop();
-            startButton.disabled = false;
-            stopButton.disabled = true;
-            showStatus('📱 Ready to add item to list', 'info');
+            if (scanner) {
+                scanner.stop();
+                startButton.disabled = false;
+                stopButton.disabled = true;
+                showStatus('📱 Ready to add item to list', 'info');
+            }
             
             // Optional: vibrate on mobile
             if (navigator.vibrate) {
@@ -292,8 +296,10 @@
         }
         
         function updateAddButton() {
-            const partNumber = partNumberInput.value.trim();
-            addItemButton.disabled = !partNumber;
+            if (partNumberInput && addItemButton) {
+                const partNumber = partNumberInput.value.trim();
+                addItemButton.disabled = !partNumber;
+            }
         }
         
         function updateItemsList() {
