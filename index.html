@@ -1,4 +1,4 @@
-i<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -222,6 +222,18 @@ i<!DOCTYPE html>
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(52, 199, 89, 0.4);
         }
+        
+        #send-sharepoint {
+            background: linear-gradient(45deg, #8B5CF6, #7C3AED);
+            width: 100%;
+            margin-top: 15px;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+        
+        #send-sharepoint:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -263,9 +275,49 @@ i<!DOCTYPE html>
         const itemsList = document.getElementById('items-list');
         const itemCount = document.getElementById('item-count');
         const clearAllButton = document.getElementById('clear-all');
+        const sendSharePointButton = document.getElementById('send-sharepoint');
         
         let scanner = null;
         let scannedItems = [];
+        let sharePointURL = '';
+        
+        // URL Storage functions
+        function loadSavedURL() {
+            try {
+                sharePointURL = localStorage.getItem('qr_scanner_sharepoint_url') || '';
+                return sharePointURL;
+            } catch (error) {
+                console.error('Could not load saved URL:', error);
+                return '';
+            }
+        }
+        
+        function saveURL(url) {
+            try {
+                localStorage.setItem('qr_scanner_sharepoint_url', url);
+                sharePointURL = url;
+                showStatus('URL saved securely in browser', 'success');
+                return true;
+            } catch (error) {
+                console.error('Could not save URL:', error);
+                showStatus('Could not save URL', 'error');
+                return false;
+            }
+        }
+        
+        function checkURLConfiguration() {
+            if (!sharePointURL) {
+                const url = prompt('Enter your SharePoint/Power Automate URL:');
+                if (url && url.startsWith('https://')) {
+                    saveURL(url);
+                    return true;
+                } else {
+                    showStatus('Valid HTTPS URL required', 'error');
+                    return false;
+                }
+            }
+            return true;
+        }
         
         function showStatus(message, type = 'info') {
             statusDiv.textContent = message;
@@ -335,6 +387,7 @@ i<!DOCTYPE html>
             if (scannedItems.length === 0) {
                 itemsList.innerHTML = '<div class="no-items">No items added yet</div>';
                 clearAllButton.style.display = 'none';
+                sendSharePointButton.style.display = 'none';
             } else {
                 itemsList.innerHTML = scannedItems.map(item => `
                     <div class="item">
@@ -345,6 +398,8 @@ i<!DOCTYPE html>
                     </div>
                 `).join('');
                 clearAllButton.style.display = 'block';
+                sendSharePointButton.style.display = 'block';
+                sendSharePointButton.textContent = `Send to SharePoint (${scannedItems.length} items)`;
             }
         }
         
@@ -398,6 +453,93 @@ i<!DOCTYPE html>
             showStatus('All items cleared', 'info');
         }
         
+        async function sendToSharePoint() {
+            if (!checkURLConfiguration()) {
+                return;
+            }
+            
+            if (scannedItems.length === 0) {
+                showStatus('No items to send', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('Sending to SharePoint...', 'info');
+                sendSharePointButton.disabled = true;
+                
+                const response = await fetch(sharePointURL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        qrCodes: scannedItems.map(item => ({
+                            partNumber: item.partNumber,
+                            description: item.description,
+                            comments: item.comments,
+                            timestamp: item.timestamp
+                        })),
+                        comments: '',
+                        timestamp: new Date().toISOString(),
+                        userAgent: navigator.userAgent,
+                        checkExistingItems: true
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    handleSharePointResponse(data);
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Send error:', error);
+                showStatus('❌ Network error - check connection and URL', 'error');
+            } finally {
+                sendSharePointButton.disabled = false;
+            }
+        }
+        
+        function handleSharePointResponse(data) {
+            try {
+                const itemsAdded = data.itemsAdded || 0;
+                const itemsSkipped = data.itemsSkipped || 0;
+                
+                let message = '✅ Success! ';
+                if (itemsAdded > 0 && itemsSkipped > 0) {
+                    message += `${itemsAdded} added, ${itemsSkipped} already in system`;
+                } else if (itemsAdded > 0) {
+                    message += `${itemsAdded} items added`;
+                } else if (itemsSkipped > 0) {
+                    message += `${itemsSkipped} items already in system`;
+                } else {
+                    message += 'All items processed';
+                }
+                
+                showStatus(message, 'success');
+                
+                // Clear items after successful send
+                scannedItems = [];
+                if (partNumberInput) partNumberInput.value = '';
+                if (commentsInput) commentsInput.value = '';
+                qrResult.textContent = 'None';
+                updateAddButton();
+                updateItemsList();
+                
+            } catch (error) {
+                console.error('Response parsing error:', error);
+                showStatus('✅ Items sent successfully!', 'success');
+                
+                // Clear items anyway
+                scannedItems = [];
+                if (partNumberInput) partNumberInput.value = '';
+                if (commentsInput) commentsInput.value = '';
+                qrResult.textContent = 'None';
+                updateAddButton();
+                updateItemsList();
+            }
+        }
+        
         // Event Listeners - Wait for DOM to be ready
         document.addEventListener('DOMContentLoaded', function() {
             // Add null checks for all elements
@@ -410,6 +552,12 @@ i<!DOCTYPE html>
             if (clearAllButton) {
                 clearAllButton.addEventListener('click', clearAllItems);
             }
+            if (sendSharePointButton) {
+                sendSharePointButton.addEventListener('click', sendToSharePoint);
+            }
+            
+            // Load saved SharePoint URL
+            loadSavedURL();
             
             // Initialize
             updateAddButton();
