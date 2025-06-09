@@ -427,6 +427,20 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
         }
+
+        /* Last scan result display */
+        .last-scan {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        
+        .last-scan strong {
+            color: #0369a1;
+        }
     </style>
 </head>
 <body>
@@ -443,6 +457,14 @@
         </div>
         
         <div id="status"></div>
+        
+        <!-- Last scan result display -->
+        <div id="last-scan" class="last-scan" style="display: none;">
+            <strong>Last Scan:</strong> <span id="scan-result"></span>
+            <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                <span id="scan-timestamp"></span>
+            </div>
+        </div>
         
         <!-- Core Input Fields -->
         <div class="input-section">
@@ -494,8 +516,6 @@
     <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
     <script>
         const video = document.getElementById('qr-video');
-        const qrResult = document.getElementById('qr-result');
-        const qrTimestamp = document.getElementById('qr-timestamp');
         const startButton = document.getElementById('start-button');
         const stopButton = document.getElementById('stop-button');
         const statusDiv = document.getElementById('status');
@@ -506,33 +526,24 @@
         const itemCount = document.getElementById('item-count');
         const clearAllButton = document.getElementById('clear-all');
         const sendSharePointButton = document.getElementById('send-sharepoint');
+        const lastScanDiv = document.getElementById('last-scan');
+        const scanResultSpan = document.getElementById('scan-result');
+        const scanTimestampSpan = document.getElementById('scan-timestamp');
         
         let scanner = null;
         let scannedItems = [];
         let sharePointURL = '';
         
-        // URL Storage functions
+        // URL Storage functions - using in-memory storage instead of localStorage for compatibility
         function loadSavedURL() {
-            try {
-                sharePointURL = localStorage.getItem('qr_scanner_sharepoint_url') || '';
-                return sharePointURL;
-            } catch (error) {
-                console.error('Could not load saved URL:', error);
-                return '';
-            }
+            // In-memory storage for this session
+            return sharePointURL || '';
         }
         
         function saveURL(url) {
-            try {
-                localStorage.setItem('qr_scanner_sharepoint_url', url);
-                sharePointURL = url;
-                showStatus('URL saved securely in browser', 'success');
-                return true;
-            } catch (error) {
-                console.error('Could not save URL:', error);
-                showStatus('Could not save URL', 'error');
-                return false;
-            }
+            sharePointURL = url;
+            showStatus('URL saved for this session', 'success');
+            return true;
         }
         
         function checkURLConfiguration() {
@@ -579,15 +590,15 @@
         
         function setResult(result) {
             console.log('QR Code detected:', result.data);
-            qrResult.textContent = result.data;
             
-            // Add timestamp back
-            const timestampDiv = document.getElementById('qr-timestamp');
-            if (timestampDiv) {
-                timestampDiv.textContent = new Date().toLocaleString();
+            // Show last scan result
+            if (scanResultSpan && scanTimestampSpan && lastScanDiv) {
+                scanResultSpan.textContent = result.data;
+                scanTimestampSpan.textContent = new Date().toLocaleString();
+                lastScanDiv.style.display = 'block';
             }
             
-            // Auto-populate part number field (check if element exists)
+            // Auto-populate part number field
             if (partNumberInput) {
                 partNumberInput.value = result.data;
                 updateAddButton();
@@ -670,7 +681,6 @@
             // Clear for next item
             partNumberInput.value = '';
             commentsInput.value = '';
-            qrResult.textContent = 'None';
             updateAddButton();
             updateItemsList();
             
@@ -683,7 +693,7 @@
             scannedItems = [];
             partNumberInput.value = '';
             commentsInput.value = '';
-            qrResult.textContent = 'None';
+            if (lastScanDiv) lastScanDiv.style.display = 'none';
             updateAddButton();
             updateItemsList();
             showStatus('All items cleared', 'info');
@@ -880,7 +890,7 @@
             console.log('Event listeners attached - DOM ready');
         });
         
-        // Initialize QR Scanner (same as working demo)
+        // Initialize QR Scanner
         scanner = new QrScanner(video, result => setResult(result), {
             onDecodeError: error => {
                 // Silent error handling - normal when no QR code visible
