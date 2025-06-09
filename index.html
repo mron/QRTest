@@ -713,34 +713,71 @@
                 showStatus('Sending to SharePoint...', 'info');
                 sendSharePointButton.disabled = true;
                 
+                const payload = {
+                    qrCodes: scannedItems.map(item => ({
+                        partNumber: item.partNumber,
+                        description: item.description,
+                        comments: item.comments,
+                        timestamp: item.timestamp
+                    })),
+                    comments: '',
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    checkExistingItems: true
+                };
+                
+                console.log('Sending payload:', payload);
+                
                 const response = await fetch(sharePointURL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        qrCodes: scannedItems.map(item => ({
-                            partNumber: item.partNumber,
-                            description: item.description,
-                            comments: item.comments,
-                            timestamp: item.timestamp
-                        })),
-                        comments: '',
-                        timestamp: new Date().toISOString(),
-                        userAgent: navigator.userAgent,
-                        checkExistingItems: true
-                    })
+                    body: JSON.stringify(payload)
                 });
                 
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
                 if (response.ok) {
-                    const data = await response.json();
-                    handleSharePointResponse(data);
+                    // Try to parse as JSON, but handle cases where it's not JSON
+                    let data;
+                    const contentType = response.headers.get('content-type');
+                    console.log('Content-Type:', contentType);
+                    
+                    if (contentType && contentType.includes('application/json')) {
+                        data = await response.json();
+                        console.log('JSON response:', data);
+                        handleSharePointResponse(data);
+                    } else {
+                        // Handle non-JSON responses (like plain text "OK" or HTML)
+                        const textResponse = await response.text();
+                        console.log('Text response:', textResponse);
+                        
+                        // Show success for any 2xx response
+                        showStatus(`✅ Success! ${scannedItems.length} items sent to SharePoint`, 'success');
+                        
+                        // Clear items after successful send
+                        scannedItems = [];
+                        if (partNumberInput) partNumberInput.value = '';
+                        if (commentsInput) commentsInput.value = '';
+                        updateAddButton();
+                        updateItemsList();
+                    }
                 } else {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
             } catch (error) {
                 console.error('Send error:', error);
-                showStatus('❌ Network error - check connection and URL', 'error');
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    showStatus('❌ Network error - check internet connection', 'error');
+                } else if (error.name === 'SyntaxError') {
+                    showStatus('❌ Server response format error', 'error');
+                } else {
+                    showStatus(`❌ Error: ${error.message}`, 'error');
+                }
             } finally {
                 sendSharePointButton.disabled = false;
             }
@@ -748,44 +785,62 @@
         
         function handleSharePointResponse(data) {
             try {
-                const itemsAdded = data.itemsAdded || 0;
-                const itemsSkipped = data.itemsSkipped || 0;
+                console.log('Handling response data:', data);
                 
-                let message = '✅ Success! ';
-                if (itemsAdded > 0 && itemsSkipped > 0) {
-                    message += `${itemsAdded} added, ${itemsSkipped} already in system`;
-                } else if (itemsAdded > 0) {
-                    message += `${itemsAdded} items added`;
-                } else if (itemsSkipped > 0) {
-                    message += `${itemsSkipped} items already in system`;
+                // Handle different response formats
+                if (typeof data === 'string') {
+                    // Simple string response
+                    showStatus(`✅ Success! Items sent to SharePoint`, 'success');
+                } else if (data && typeof data === 'object') {
+                    // JSON object response
+                    const itemsAdded = data.itemsAdded || data.added || 0;
+                    const itemsSkipped = data.itemsSkipped || data.skipped || 0;
+                    const totalItems = data.total || scannedItems.length;
+                    
+                    let message = '✅ Success! ';
+                    if (itemsAdded > 0 && itemsSkipped > 0) {
+                        message += `${itemsAdded} added, ${itemsSkipped} already in system`;
+                    } else if (itemsAdded > 0) {
+                        message += `${itemsAdded} items added`;
+                    } else if (itemsSkipped > 0) {
+                        message += `${itemsSkipped} items already in system`;
+                    } else if (totalItems > 0) {
+                        message += `${totalItems} items processed`;
+                    } else {
+                        message += 'Items sent successfully';
+                    }
+                    
+                    showStatus(message, 'success');
+                    
+                    // Show detailed results if available
+                    if (data.itemDetails && Array.isArray(data.itemDetails) && data.itemDetails.length > 0) {
+                        setTimeout(() => {
+                            showResultsModal(data.itemDetails);
+                        }, 1000);
+                    }
                 } else {
-                    message += 'All items processed';
-                }
-                
-                showStatus(message, 'success');
-                
-                // Show detailed results if available
-                if (data.itemDetails && data.itemDetails.length > 0) {
-                    setTimeout(() => {
-                        showResultsModal(data.itemDetails);
-                    }, 1000);
+                    // Fallback for any other response
+                    showStatus('✅ Items sent successfully!', 'success');
                 }
                 
                 // Clear items after successful send
                 scannedItems = [];
                 if (partNumberInput) partNumberInput.value = '';
                 if (commentsInput) commentsInput.value = '';
+                if (lastScanDiv) lastScanDiv.style.display = 'none';
                 updateAddButton();
                 updateItemsList();
                 
             } catch (error) {
                 console.error('Response parsing error:', error);
+                // Even if parsing fails, show success since the HTTP request succeeded
                 showStatus('✅ Items sent successfully!', 'success');
                 
-                // Clear items anyway
+                // Clear items anyway since the request was successful
                 scannedItems = [];
                 if (partNumberInput) partNumberInput.value = '';
                 if (commentsInput) commentsInput.value = '';
+                if (lastScanDiv) lastScanDiv.style.display = 'none';
                 updateAddButton();
                 updateItemsList();
             }
