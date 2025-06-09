@@ -796,6 +796,7 @@
                     const itemsAdded = data.itemsAdded || data.added || 0;
                     const itemsSkipped = data.itemsSkipped || data.skipped || 0;
                     const totalItems = data.total || scannedItems.length;
+                    const flaggedItems = data.flaggedItems || data.itemDetails || [];
                     
                     let message = '✅ Success! ';
                     if (itemsAdded > 0 && itemsSkipped > 0) {
@@ -812,10 +813,10 @@
                     
                     showStatus(message, 'success');
                     
-                    // Show detailed results if available
-                    if (data.itemDetails && Array.isArray(data.itemDetails) && data.itemDetails.length > 0) {
+                    // Show detailed results if available (using flaggedItems or itemDetails)
+                    if (flaggedItems && Array.isArray(flaggedItems) && flaggedItems.length > 0) {
                         setTimeout(() => {
-                            showResultsModal(data.itemDetails);
+                            showResultsModal(flaggedItems);
                         }, 1000);
                     }
                 } else {
