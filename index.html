@@ -534,16 +534,36 @@
         let scannedItems = [];
         let sharePointURL = '';
         
-        // URL Storage functions - using in-memory storage instead of localStorage for compatibility
+        // URL Storage functions - using localStorage with fallback
         function loadSavedURL() {
-            // In-memory storage for this session
+            try {
+                const savedURL = localStorage.getItem('qr_scanner_sharepoint_url');
+                if (savedURL) {
+                    sharePointURL = savedURL;
+                    console.log('Loaded saved SharePoint URL');
+                    return savedURL;
+                }
+            } catch (error) {
+                console.warn('Could not access localStorage:', error);
+                // Fall back to session-only storage
+            }
             return sharePointURL || '';
         }
         
         function saveURL(url) {
-            sharePointURL = url;
-            showStatus('URL saved for this session', 'success');
-            return true;
+            try {
+                localStorage.setItem('qr_scanner_sharepoint_url', url);
+                sharePointURL = url;
+                showStatus('URL saved securely in browser', 'success');
+                console.log('SharePoint URL saved to localStorage');
+                return true;
+            } catch (error) {
+                console.warn('Could not save to localStorage:', error);
+                // Fall back to session-only storage
+                sharePointURL = url;
+                showStatus('URL saved for this session only', 'info');
+                return true;
+            }
         }
         
         function checkURLConfiguration() {
