@@ -141,6 +141,8 @@
         
         .items-section {
             margin: 20px 0;
+            position: relative;
+            z-index: 1;
         }
         
         .items-section h3 {
@@ -155,6 +157,13 @@
             border-radius: 8px;
             padding: 10px;
             background: #fafafa;
+            margin-bottom: 15px;
+        }
+        
+        .buttons-row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
         
         .item {
@@ -203,7 +212,7 @@
         
         #clear-all {
             background: linear-gradient(45deg, #FF3B30, #D70015);
-            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
         }
         
         #clear-all:hover {
@@ -226,8 +235,9 @@
         #send-sharepoint {
             background: linear-gradient(45deg, #8B5CF6, #7C3AED);
             width: 100%;
-            margin-top: 15px;
             box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+            position: relative;
+            z-index: 2;
         }
         
         #send-sharepoint:hover {
@@ -238,7 +248,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 Simple QR Scanner</h1>
+        <h1>📱 QR Scanner v2.0 - SharePoint Ready</h1>
         
         <div id="video-container">
             <video id="qr-video"></video>
@@ -251,6 +261,17 @@
         
         <div id="status"></div>
         
+        <!-- Core Input Fields -->
+        <div class="input-section">
+            <label for="part-number">Part Number:</label>
+            <input type="text" id="part-number" placeholder="Scan or enter part number">
+            
+            <label for="comments">Comments:</label>
+            <textarea id="comments" placeholder="Optional comments" rows="3"></textarea>
+            
+            <button id="add-item" disabled>Add to List</button>
+        </div>
+        
         <div class="result">
             <strong>Last Scanned:</strong>
             <div id="qr-result">None</div>
@@ -260,12 +281,26 @@
             <strong>Timestamp:</strong>
             <div id="qr-timestamp">-</div>
         </div>
+        
+        <!-- Items List -->
+        <div class="items-section">
+            <h3>Scanned Items (<span id="item-count">0</span>)</h3>
+            <div id="items-list">
+                <div class="no-items">No items added yet</div>
+            </div>
+            
+            <div class="buttons-row">
+                <button id="send-sharepoint" style="display: none;">Send to SharePoint (0 items)</button>
+                <button id="clear-all" style="display: none;">Clear All Items</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
     <script>
         const video = document.getElementById('qr-video');
         const qrResult = document.getElementById('qr-result');
+        const qrTimestamp = document.getElementById('qr-timestamp');
         const startButton = document.getElementById('start-button');
         const stopButton = document.getElementById('stop-button');
         const statusDiv = document.getElementById('status');
@@ -350,6 +385,12 @@
         function setResult(result) {
             console.log('QR Code detected:', result.data);
             qrResult.textContent = result.data;
+            
+            // Add timestamp back
+            const timestampDiv = document.getElementById('qr-timestamp');
+            if (timestampDiv) {
+                timestampDiv.textContent = new Date().toLocaleString();
+            }
             
             // Auto-populate part number field (check if element exists)
             if (partNumberInput) {
