@@ -853,16 +853,20 @@
             const statsRow = document.getElementById('statsRow');
             const resultsTable = document.getElementById('resultsTable');
             
-            // Update subtitle
-            subtitle.textContent = `${itemDetails.length} items processed successfully`;
+            console.log('Showing results modal with data:', itemDetails);
             
-            // Calculate stats
+            // Update subtitle
+            subtitle.textContent = `${itemDetails.length} item${itemDetails.length > 1 ? 's' : ''} processed`;
+            
+            // Calculate stats based on actual status values
             const stats = {
-                added: itemDetails.filter(item => item.status.toLowerCase() === 'added').length,
-                ordered: itemDetails.filter(item => item.status.toLowerCase() === 'ordered').length,
-                received: itemDetails.filter(item => item.status.toLowerCase() === 'received').length,
-                notOrdered: itemDetails.filter(item => item.status.toLowerCase() === 'not ordered').length
+                added: itemDetails.filter(item => item.status && item.status.toLowerCase().includes('added')).length,
+                ordered: itemDetails.filter(item => item.status && (item.status.toLowerCase() === 'ordered' || (item.poNumber && item.poNumber.trim() !== ''))).length,
+                received: itemDetails.filter(item => item.status && item.status.toLowerCase() === 'received').length,
+                notOrdered: itemDetails.filter(item => item.status && item.status.toLowerCase() === 'not ordered').length
             };
+            
+            console.log('Calculated stats:', stats);
             
             // Build stats row
             statsRow.innerHTML = `
@@ -884,19 +888,36 @@
                 </div>
             `;
             
-            // Build results table
+            // Build results table with proper handling of your data structure
             resultsTable.innerHTML = itemDetails.map(item => {
-                const statusClass = item.status.toLowerCase().replace(' ', '-');
-                const icon = getStatusIcon(item.status.toLowerCase());
+                console.log('Processing item:', item);
+                
+                const status = item.status || 'Unknown';
+                const partNumber = item.partNumber || 'Unknown Part';
+                const poNumber = item.poNumber || '';
+                
+                // Determine status class for styling
+                let statusClass = 'unknown';
+                if (status.toLowerCase().includes('added')) {
+                    statusClass = 'added';
+                } else if (status.toLowerCase() === 'ordered' || (poNumber && poNumber.trim() !== '')) {
+                    statusClass = 'ordered';
+                } else if (status.toLowerCase() === 'received') {
+                    statusClass = 'received';
+                } else if (status.toLowerCase() === 'not ordered') {
+                    statusClass = 'not-ordered';
+                }
+                
+                const icon = getStatusIcon(statusClass);
                 
                 return `
                     <div class="result-row ${statusClass}">
                         <div class="result-icon">${icon}</div>
                         <div class="result-info">
-                            <div class="result-part">${item.partNumber}</div>
+                            <div class="result-part">${partNumber}</div>
                             <div>
-                                <span class="result-status ${statusClass}">${item.status}</span>
-                                ${item.poNumber ? `<span class="result-po">PO: ${item.poNumber}</span>` : ''}
+                                <span class="result-status ${statusClass}">${status}</span>
+                                ${poNumber && poNumber.trim() !== '' ? `<span class="result-po">PO: ${poNumber}</span>` : ''}
                             </div>
                         </div>
                     </div>
@@ -906,12 +927,12 @@
             modal.style.display = 'flex';
         }
         
-        function getStatusIcon(status) {
-            switch (status) {
+        function getStatusIcon(statusClass) {
+            switch (statusClass) {
                 case 'added': return '✅';
-                case 'ordered': return '⏰';
-                case 'received': return '📋';
-                case 'not ordered': return '⚠️';
+                case 'ordered': return '📦';
+                case 'received': return '✔️';
+                case 'not-ordered': return '⚠️';
                 default: return '❓';
             }
         }
