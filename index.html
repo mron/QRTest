@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+i<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -17,13 +17,17 @@
             background: white;
             padding: 20px;
             border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
         }
         
         h1 {
             text-align: center;
             color: #333;
             margin-bottom: 20px;
+            background: linear-gradient(45deg, #007AFF, #5856D6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
         #video-container {
@@ -46,23 +50,33 @@
         }
         
         button {
-            background: #007AFF;
+            background: linear-gradient(45deg, #007AFF, #5856D6);
             color: white;
             border: none;
             padding: 12px 24px;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 16px;
+            font-weight: 600;
             margin: 0 10px;
             cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
         }
         
         button:hover {
-            background: #0056CC;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 122, 255, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
         }
         
         button:disabled {
             background: #ccc;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         
         .result {
@@ -188,12 +202,25 @@
         }
         
         #clear-all {
-            background: #FF3B30;
+            background: linear-gradient(45deg, #FF3B30, #D70015);
             margin-top: 10px;
         }
         
         #clear-all:hover {
-            background: #D70015;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 59, 48, 0.4);
+        }
+        
+        #add-item {
+            background: linear-gradient(45deg, #34C759, #30D158);
+            width: 100%;
+            margin-top: 15px;
+            box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3);
+        }
+        
+        #add-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(52, 199, 89, 0.4);
         }
     </style>
 </head>
@@ -373,15 +400,22 @@
         
         // Event Listeners - Wait for DOM to be ready
         document.addEventListener('DOMContentLoaded', function() {
-            partNumberInput.addEventListener('input', updateAddButton);
-            addItemButton.addEventListener('click', addItemToList);
-            clearAllButton.addEventListener('click', clearAllItems);
+            // Add null checks for all elements
+            if (partNumberInput) {
+                partNumberInput.addEventListener('input', updateAddButton);
+            }
+            if (addItemButton) {
+                addItemButton.addEventListener('click', addItemToList);
+            }
+            if (clearAllButton) {
+                clearAllButton.addEventListener('click', clearAllItems);
+            }
             
             // Initialize
             updateAddButton();
             updateItemsList();
             
-            console.log('Event listeners attached');
+            console.log('Event listeners attached - DOM ready');
         });
         
         // Initialize QR Scanner (same as working demo)
