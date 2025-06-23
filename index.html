@@ -521,6 +521,16 @@
             </div>
         </div>
         
+        <!-- Debug Section (remove in production) -->
+        <div class="input-section" style="border: 2px dashed #ff6b6b; border-radius: 8px; padding: 15px; margin: 15px 0; background: #fff5f5;">
+            <h4 style="color: #dc2626; margin: 0 0 10px 0;">🐛 Debug Tools</h4>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button type="button" onclick="debugShowNameData()" style="background: #10b981; font-size: 14px; padding: 8px 16px;">Show Name Data</button>
+                <button type="button" onclick="debugClearNameData()" style="background: #ef4444; font-size: 14px; padding: 8px 16px;">Clear Name Data</button>
+                <button type="button" onclick="debugResetToDefaults()" style="background: #f59e0b; font-size: 14px; padding: 8px 16px;">Reset to Defaults</button>
+            </div>
+        </div>
+
         <!-- Core Input Fields -->
         <div class="input-section">
             <label for="part-number">Part Number:</label>
@@ -596,8 +606,38 @@
         let scanner = null;
         let scannedItems = [];
         let sharePointURL = '';
-        let userNames = ['Brad', 'Kane', 'Huub','Ron','Patrick','Shane','William']; // Default names
+        let userNames = ['John', 'Sarah', 'Mike']; // Default names
         let selectedUserName = '';
+        
+        // Debug functions for testing localStorage
+        function debugShowNameData() {
+            const names = localStorage.getItem('qr_scanner_user_names');
+            const selected = localStorage.getItem('qr_scanner_selected_user');
+            
+            let message = '🐛 DEBUG INFO:\n\n';
+            message += `Stored Names: ${names || 'null'}\n`;
+            message += `Selected Name: ${selected || 'null'}\n\n`;
+            message += `Current userNames array: ${JSON.stringify(userNames)}\n`;
+            message += `Current selectedUserName: "${selectedUserName}"\n\n`;
+            message += `Dropdown value: "${userNameSelect.value}"`;
+            
+            alert(message);
+        }
+        
+        function debugClearNameData() {
+            localStorage.removeItem('qr_scanner_user_names');
+            localStorage.removeItem('qr_scanner_selected_user');
+            alert('✅ Name data cleared from localStorage!\n\nPage will reload to show changes.');
+            location.reload();
+        }
+        
+        function debugResetToDefaults() {
+            userNames = ['John', 'Sarah', 'Mike'];
+            selectedUserName = 'Mike';
+            saveUserNames();
+            updateNameDropdown();
+            alert('✅ Reset to default names!\n\nDefault: John, Sarah, Mike\nSelected: Mike');
+        }
         
         // Name management functions
         function loadUserNames() {
