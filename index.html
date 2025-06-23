@@ -934,4 +934,284 @@
                         console.log('Text response:', textResponse);
                         
                         // Show success for any 2xx response
-                        showStatus(`✅ Success! ${scannedItems.length} items sent to SharePoint
+                        showStatus(`✅ Success! ${scannedItems.length} items sent to SharePoint`, 'success');
+                        
+                        // Clear items after successful send
+                        scannedItems = [];
+                        if (partNumberInput) partNumberInput.value = '';
+                        if (commentsInput) commentsInput.value = '';
+                        updateAddButton();
+                        updateItemsList();
+                    }
+                } else {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Send error:', error);
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    showStatus('❌ Network error - check internet connection', 'error');
+                } else if (error.name === 'SyntaxError') {
+                    showStatus('❌ Server response format error', 'error');
+                } else {
+                    showStatus(`❌ Error: ${error.message}`, 'error');
+                }
+            } finally {
+                sendSharePointButton.disabled = false;
+            }
+        }
+        
+        function handleSharePointResponse(data) {
+            try {
+                console.log('Handling response data:', data);
+                
+                // Handle different response formats
+                if (typeof data === 'string') {
+                    // Simple string response
+                    showStatus(`✅ Success! Items sent to SharePoint`, 'success');
+                } else if (data && typeof data === 'object') {
+                    // JSON object response
+                    const itemsAdded = data.itemsAdded || data.added || 0;
+                    const itemsSkipped = data.itemsSkipped || data.skipped || 0;
+                    const totalItems = data.total || scannedItems.length;
+                    const flaggedItems = data.flaggedItems || data.itemDetails || [];
+                    
+                    let message = '✅ Success! ';
+                    if (itemsAdded > 0 && itemsSkipped > 0) {
+                        message += `${itemsAdded} added, ${itemsSkipped} already in system`;
+                    } else if (itemsAdded > 0) {
+                        message += `${itemsAdded} items added`;
+                    } else if (itemsSkipped > 0) {
+                        message += `${itemsSkipped} items already in system`;
+                    } else if (totalItems > 0) {
+                        message += `${totalItems} items processed`;
+                    } else {
+                        message += 'Items sent successfully';
+                    }
+                    
+                    showStatus(message, 'success');
+                    
+                    // Show detailed results if available (using flaggedItems or itemDetails)
+                    if (flaggedItems && Array.isArray(flaggedItems) && flaggedItems.length > 0) {
+                        setTimeout(() => {
+                            showResultsModal(flaggedItems);
+                        }, 1000);
+                    }
+                } else {
+                    // Fallback for any other response
+                    showStatus('✅ Items sent successfully!', 'success');
+                }
+                
+                // Clear items after successful send
+                scannedItems = [];
+                if (partNumberInput) partNumberInput.value = '';
+                if (commentsInput) commentsInput.value = '';
+                if (lastScanDiv) lastScanDiv.style.display = 'none';
+                updateAddButton();
+                updateItemsList();
+                
+            } catch (error) {
+                console.error('Response parsing error:', error);
+                // Even if parsing fails, show success since the HTTP request succeeded
+                showStatus('✅ Items sent successfully!', 'success');
+                
+                // Clear items anyway since the request was successful
+                scannedItems = [];
+                if (partNumberInput) partNumberInput.value = '';
+                if (commentsInput) commentsInput.value = '';
+                if (lastScanDiv) lastScanDiv.style.display = 'none';
+                updateAddButton();
+                updateItemsList();
+            }
+        }
+        
+        function showResultsModal(itemDetails) {
+            const modal = document.getElementById('resultsModal');
+            const subtitle = document.getElementById('resultsSubtitle');
+            const statsRow = document.getElementById('statsRow');
+            const resultsTable = document.getElementById('resultsTable');
+            
+            console.log('Showing results modal with data:', itemDetails);
+            
+            // Update subtitle
+            subtitle.textContent = `${itemDetails.length} item${itemDetails.length > 1 ? 's' : ''} processed`;
+            
+            // Calculate stats based on actual status values
+            const stats = {
+                added: itemDetails.filter(item => item.status && item.status.toLowerCase().includes('added')).length,
+                ordered: itemDetails.filter(item => item.status && (item.status.toLowerCase() === 'ordered' || (item.poNumber && item.poNumber.trim() !== ''))).length,
+                received: itemDetails.filter(item => item.status && item.status.toLowerCase() === 'received').length,
+                notOrdered: itemDetails.filter(item => item.status && item.status.toLowerCase() === 'not ordered').length
+            };
+            
+            console.log('Calculated stats:', stats);
+            
+            // Build stats row
+            statsRow.innerHTML = `
+                <div class="stat-badge added">
+                    <div class="stat-count">${stats.added}</div>
+                    <div class="stat-label">Added</div>
+                </div>
+                <div class="stat-badge ordered">
+                    <div class="stat-count">${stats.ordered}</div>
+                    <div class="stat-label">Ordered</div>
+                </div>
+                <div class="stat-badge received">
+                    <div class="stat-count">${stats.received}</div>
+                    <div class="stat-label">Received</div>
+                </div>
+                <div class="stat-badge not-ordered">
+                    <div class="stat-count">${stats.notOrdered}</div>
+                    <div class="stat-label">Not Ordered</div>
+                </div>
+            `;
+            
+            // Build results table with proper handling of your data structure
+            resultsTable.innerHTML = itemDetails.map(item => {
+                console.log('Processing item:', item);
+                
+                const status = item.status || 'Unknown';
+                const partNumber = item.partNumber || 'Unknown Part';
+                const poNumber = item.poNumber || '';
+                const userName = item.userName || '';
+                
+                // Determine status class for styling
+                let statusClass = 'unknown';
+                if (status.toLowerCase().includes('added')) {
+                    statusClass = 'added';
+                } else if (status.toLowerCase() === 'ordered' || (poNumber && poNumber.trim() !== '')) {
+                    statusClass = 'ordered';
+                } else if (status.toLowerCase() === 'received') {
+                    statusClass = 'received';
+                } else if (status.toLowerCase() === 'not ordered') {
+                    statusClass = 'not-ordered';
+                }
+                
+                const icon = getStatusIcon(statusClass);
+                
+                return `
+                    <div class="result-row ${statusClass}">
+                        <div class="result-icon">${icon}</div>
+                        <div class="result-info">
+                            <div class="result-part">${partNumber}</div>
+                            <div>
+                                <span class="result-status ${statusClass}">${status}</span>
+                                ${userName && userName.trim() !== '' ? `<span class="result-user">👤 ${userName}</span>` : ''}
+                                ${poNumber && poNumber.trim() !== '' ? `<span class="result-po">PO: ${poNumber}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            modal.style.display = 'flex';
+        }
+        
+        function getStatusIcon(statusClass) {
+            switch (statusClass) {
+                case 'added': return '✅';
+                case 'ordered': return '📦';
+                case 'received': return '✔️';
+                case 'not-ordered': return '⚠️';
+                default: return '❓';
+            }
+        }
+        
+        function closeResultsModal() {
+            document.getElementById('resultsModal').style.display = 'none';
+        }
+        
+        // Event Listeners - Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add null checks for all elements
+            if (partNumberInput) {
+                partNumberInput.addEventListener('input', updateAddButton);
+            }
+            if (userNameSelect) {
+                userNameSelect.addEventListener('change', function() {
+                    if (this.value === 'add-new') {
+                        addNewUserName();
+                    } else {
+                        selectedUserName = this.value;
+                        saveUserNames();
+                        updateAddButton();
+                    }
+                });
+            }
+            if (addItemButton) {
+                addItemButton.addEventListener('click', addItemToList);
+            }
+            if (clearAllButton) {
+                clearAllButton.addEventListener('click', clearAllItems);
+            }
+            if (sendSharePointButton) {
+                sendSharePointButton.addEventListener('click', sendToSharePoint);
+            }
+            
+            // Load saved data
+            loadSavedURL();
+            loadUserNames();
+            
+            // Initialize
+            updateAddButton();
+            updateItemsList();
+            
+            console.log('Event listeners attached - DOM ready');
+        });
+        
+        // Initialize QR Scanner
+        scanner = new QrScanner(video, result => setResult(result), {
+            onDecodeError: error => {
+                // Silent error handling - normal when no QR code visible
+            },
+            highlightScanRegion: true,
+            highlightCodeOutline: true,
+            preferredCamera: 'environment'
+        });
+        
+        // Start button
+        startButton.addEventListener('click', async () => {
+            try {
+                showStatus('Starting camera...', 'info');
+                await scanner.start();
+                
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                showStatus('Camera active - point at QR code', 'success');
+                
+            } catch (error) {
+                console.error('Camera error:', error);
+                
+                if (error.name === 'NotAllowedError') {
+                    showStatus('❌ Camera permission denied', 'error');
+                } else if (error.name === 'NotFoundError') {
+                    showStatus('❌ No camera found', 'error');
+                } else {
+                    showStatus('❌ Camera error: ' + error.message, 'error');
+                }
+            }
+        });
+        
+        // Stop button
+        stopButton.addEventListener('click', () => {
+            scanner.stop();
+            startButton.disabled = false;
+            stopButton.disabled = true;
+            showStatus('Camera stopped', 'info');
+        });
+        
+        // Check if camera is available
+        QrScanner.hasCamera().then(hasCamera => {
+            if (!hasCamera) {
+                showStatus('❌ No camera available on this device', 'error');
+                startButton.disabled = true;
+            } else {
+                showStatus('📷 Camera ready - click Start to begin', 'info');
+            }
+        });
+        
+        console.log('QR Scanner with name functionality initialized');
+    </script>
+</body>
+</html>
