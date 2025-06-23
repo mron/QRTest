@@ -780,13 +780,13 @@
         
         function parseQRCode(data) {
             try {
-                if (data.includes('|')) {
-                    const [partNumber, description] = data.split('|');
-                    return { partNumber: partNumber.trim(), description: description.trim() };
-                } else if (data.startsWith('{')) {
-                    const parsed = JSON.parse(data);
-                    return { partNumber: parsed.partNumber || 'Unknown', description: parsed.description || 'No description' };
-                } else {
+                const regex = /((?:\d\d-\d{5}-\d\d)|(?:ar20-\w+-\d{5}))?(.*)?/;
+                const match = data.match(regex);
+                if (defined(match[1])) {
+                    const pn = match[1] ;
+                    const desc = match[2] ;
+                    return { partNumber: pn, description: desc };
+                 } else {
                     return { partNumber: data, description: 'Scanned QR Code' };
                 }
             } catch (error) {
